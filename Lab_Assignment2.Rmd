@@ -1,0 +1,117 @@
+---
+title: "MSiA400_Lab2"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readr)
+library(e1071)
+library(tidyverse)
+library(caret)
+```
+
+## Data Import
+
+```{r}
+dat <- read_csv("gradAdmit.csv")
+```
+## Problem 1a
+
+```{r}
+set.seed(123)
+n <- nrow(dat)
+train_i <- sample.int(n = n, size = floor(n * 0.8), replace = FALSE)
+train <- dat[train_i, ]
+test <- dat[-train_i, ]
+```
+
+## Problem 1b
+
+### Kernel Selection and Degree, gamma, and coef0 search
+
+```{r}
+set.seed(123)
+folds <- createFolds(1:nrow(train), k=5)
+kernels <- c("linear", "polynomial", "radial", "sigmoid")
+train_acc_by_fold <- numeric(5)
+val_acc_by_fold <- numeric(5)
+avg_train_acc <- numeric(4)
+avg_val_acc <- numeric(4)
+
+degrees <- c(2,3,4)
+gammas <- c(0.01, 0.1, 1)
+coef0s <- c(0.01, 0.1, 1, 10)
+costs <- c(0.01, 0.01, 1, 10, 100)
+acc_df <- tibble(
+  degree = numeric(),
+  gamma = numeric(),
+  coef0 = numeric(),
+  cost = numeric(),
+  kernel = character(),
+  avg_training_acc = numeric(),
+  avg_validation_acc = numeric()
+)
+
+
+for (k in seq_len(length(degrees))){
+  for (m in seq_len(length(gammas))){
+    for (n in seq_len(length(coef0s))){
+      for (p in seq_len(length(costs))){
+        for(i in seq_len(4)){
+          for (j in seq_len(5)){
+            curr_val_set <- train[folds[[j]], ] 
+            curr_train_set <- train[-folds[[j]], ] 
+            curr_svm <- suppressWarnings(svm(factor(admit) ~ ., data = curr_train_set,
+                            kernel = kernels[i],
+                            degree = degrees[k],
+                            gamma = gammas[m],
+                            coef0 = coef0s[n],
+                            cost = costs[p]))
+            
+            curr_train_pred <- predict(curr_svm, newdata = curr_train_set, type = 'response')
+            curr_train_acc <- sum(curr_train_set$admit == curr_train_pred) / nrow(curr_train_set)
+            
+            curr_pred <- predict(curr_svm, newdata = curr_val_set, type = 'response')
+            curr_val_acc <- sum(curr_val_set$admit == curr_pred) / nrow(curr_val_set)
+            
+            train_acc_by_fold[j] <- curr_train_acc
+            val_acc_by_fold[j] <- curr_val_acc
+          }
+          acc_df <- acc_df %>% add_row(degree = degrees[k], gamma = gammas[m], coef0 = coef0s[n], cost = costs[p], kernel = kernels[i], avg_training_acc = mean(train_acc_by_fold), avg_validation_acc = mean(val_acc_by_fold))
+        }
+      }
+    }
+  }
+}
+
+
+acc_df
+```
+```{r}
+newdf <- acc_df[order(-acc_df$avg_validation_acc, -acc_df$avg_training_acc),]
+newdf
+```
+
+As seen from the dataframe above, polynomial kernel with degree 4, gamma 0.01, coef0 = 10, cost = 10 is most optimal. Both training and validation accuracy is high, and the difference between them is small, which indicates less overfitting.
+
+### problem 1c
+
+```{r}
+dat <- read_csv("gradAdmit.csv")
+set.seed(1)
+n <- nrow(dat)
+train_i <- sample.int(n = n, size = floor(n * 0.8), replace = FALSE)
+train <- dat[train_i, ]
+test <- dat[-train_i, ]
+
+best_m <- svm(factor(admit) ~ ., data = train,
+                            kernel = "polynomial",
+                            degree = 4,
+                            gamma = 0.01,
+                            coef0 = 10,
+                            cost = 10)
+m2 <- svm(factor(admit) ~ ., kernel = 'radial', cost = 9, gamma = 0.16, data = train)
+pred <- predict(best_m, newdata = test, type = 'response')
+sum(test$admit == pred) / nrow(test)
+```
