@@ -1,0 +1,242 @@
+---
+title: "MSiA400_Lab3"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readr)
+library(e1071)
+library(tidyverse)
+library(caret)
+library(DMwR)
+```
+
+## Question 1
+
+### a
+
+### b
+
+## Question 2
+
+### a
+
+```{r}
+x_i <- c(4, 4, 5, 2, 2, 6)
+p_fair <- rep(1/6, 6)
+p_unfair <- c(2/13, 2/13, 1/13, 4/13, 2/13, 2/13)
+p_fair_all <- 0.5 * p_fair[4]
+p_unfair_all <- 0.5 * p_unfair[4]
+for (i in seq(2, 6)){
+  curr_xi <- x_i[i]
+  p_fair_all <- p_fair_all * 0.75 * p_fair[curr_xi]
+  p_unfair_all <- p_unfair_all * 0.75 * p_unfair[curr_xi]
+}
+p_fair_all
+p_unfair_all
+```
+
+All unfair die is more likely to get the given observation.
+
+### b
+
+```{r}
+s <- c("f")
+p_fair_out <- c(0.5 * 1/6)
+p_unfair_out <- c(0.5 * p_unfair[4])
+
+
+for (i in seq(2,6)){
+    curr_xi <- x_i[i]
+# p(fair | x_i = curr_xi)
+    curr <- c("f", "f", "u", "u")
+    curr_p_fair_prev_fair <- 0.75 * p_fair[curr_xi]
+
+    curr_p_unfair_prev_fair <- 0.25 * p_unfair[curr_xi]
+
+    curr_p_fair_prev_unfair <- 0.25 * p_fair[curr_xi]
+
+    curr_p_unfair_prev_unfair <- 0.75 * p_unfair[curr_xi]
+    
+    p_fair_out <- append(p_fair_out, curr_p_fair_prev_fair) 
+    p_fair_out <- append(p_fair_out, curr_p_unfair_prev_fair)
+    
+    p_unfair_out <- append(p_unfair_out, curr_p_fair_prev_unfair)
+    p_unfair_out <- append(p_unfair_out, curr_p_unfair_prev_unfair)
+        
+                       
+}
+p_fair_out
+p_unfair_out
+
+```
+
+## Question 3
+
+### a
+
+```{r}
+dat <- read_csv("gradAdmit.csv")
+set.seed(123)
+n <- nrow(dat)
+train_i <- sample.int(n = n, size = floor(n * 0.8), replace = FALSE)
+train <- dat[train_i, ]
+test <- dat[-train_i, ]
+```
+
+```{r}
+table(train$admit)
+table(test$admit)
+```
+
+In the train dataset, 32.5% were admitted. In the test dataset, 28.75% were admitted.
+
+### b
+
+```{r}
+best_m <- svm(factor(admit) ~ ., data = train,
+                            kernel = "polynomial",
+                            degree = 4,
+                            gamma = 0.01,
+                            coef0 = 10,
+                            cost = 10)
+
+pred_train <- predict(best_m, newdata = train, type = 'response')
+pred_test <- predict(best_m, newdata = test, type = 'response')
+
+confusionMatrix(pred_train, factor(train$admit), positive = "1")
+confusionMatrix(pred_test, factor(test$admit), positive = "1")
+```
+
+```{r}
+# precision = TP / (TP + FP)
+p_test <- 4 / (4 + 2)
+
+# recall = TP / (TP + FN)
+r_test <- 4 / (4 + 19)
+
+# specificity = TN / (TN + FP)
+s_test <- 55 / (55 + 2)
+
+p_test
+r_test
+s_test
+```
+
+### c
+
+There are 320 samples in the train set. There are 104 in admit, 216 in reject. Thus, we need 216 - 104 = 112 to obtain the most balanced dataset
+
+```{r}
+perc <- 100 * (112-104) / 104
+train$admit <- factor(train$admit)
+train_df <- as.data.frame(train)
+new_train <- SMOTE(form = admit~., train_df, perc.over = perc, perc.under = 0)
+# table(new_train$admit)
+train_full <- rbind(train_df, new_train)
+table(train_full$admit)
+```
+
+### d
+
+```{r}
+best_m <- svm(factor(admit) ~ ., data = train_full,
+                            kernel = "polynomial",
+                            degree = 4,
+                            gamma = 0.01,
+                            coef0 = 10,
+                            cost = 10)
+pred_test <- predict(best_m, newdata = test, type = 'response')
+confusionMatrix(pred_test, factor(test$admit), positive = "1")
+```
+
+```{r}
+# precision = TP / (TP + FP)
+p_test_smote <- 12 / (12 + 19)
+
+# recall = TP / (TP + FN)
+r_test_smote <- 12 / (12 + 11)
+
+# specificity = TN / (TN + FP)
+s_test_smote <- 38 / (38 + 19)
+
+p_test_smote
+r_test_smote
+s_test_smote
+```
+
+The precision and specificity are decreased, but the recall is increased compared to the unbalanced dataset.
+
+## Problem 4
+
+### a
+
+```{r}
+set.seed(123)
+lambda <- 1
+n <- ceiling((1 / lambda^2) / (10^(-6) * 0.01))
+curr_i <- numeric(3)
+real_i <- 1/(1+lambda^2)
+
+curr_n <- n
+x <- runif(curr_n, 0, 1)
+y <- -log(x) / lambda
+curr_i <- 1/curr_n * sum(sin(y) / lambda)
+curr_i
+```
+
+```{r}
+crit <- exp(-10 * pi)
+sum(y > crit) / length(y)
+```
+
+### b
+
+```{r}
+set.seed(123)
+lambda <- 1
+n <- ceiling((1 / lambda^2) / (10^(-6) * 0.01))
+curr_i <- numeric(3)
+real_i <- 1/(1+lambda^2)
+
+curr_n <- n
+x <- runif(curr_n, 0, 1)
+y <- -log(x) / lambda
+est <- 1/curr_n * sum(sin(y) / lambda)
+est
+real <- 1 / (1 + 1^2)
+real
+```
+
+### c
+
+We can plot $g^2(x)p(x)$ to find the best $p^*(x)$
+
+```{r}
+x <- c(seq(0.01, 0.1, 0.01), seq(0.1, 1, 0.1), seq(1, 100))
+g2xpx <- exp(-x) * ifelse(x >= 10*pi, sin(x), 0)
+plot(x, g2xpx)
+```
+
+Here, we can see that when $g^2(x)p(x)$ is small, it is equal to 0. Note the asymptotic behavior of the curve. Thus, we must ensure that when $x < 10 \pi$, $p^*(x) < p(x)$. By same logic,  when $x > 10 \pi$, $p^*(x) > p(x)$.
+
+### d
+
+```{r}
+set.seed(123)
+lambda <- 1
+n <- ceiling((1 / lambda^2) / (10^(-6) * 0.01))
+curr_i <- numeric(3)
+real_i <- 1/(1+lambda^2)
+
+curr_n <- n
+x <- runif(curr_n, 0, 1)
+y <- -log(x) / lambda
+est <- 1/curr_n * sum(sin(y) / lambda)
+est
+real <- 1 / (1 + 1^2)
+real
+```
+
+
