@@ -16,7 +16,12 @@ library(DMwR)
 
 ### a
 
+See PDF called question 1
+
 ### b
+
+See PDF called question 1
+
 
 ## Question 2
 
@@ -219,24 +224,15 @@ g2xpx <- exp(-x) * ifelse(x >= 10*pi, sin(x), 0)
 plot(x, g2xpx)
 ```
 
-Here, we can see that when $g^2(x)p(x)$ is small, it is equal to 0. Note the asymptotic behavior of the curve. Thus, we must ensure that when $x < 10 \pi$, $p^*(x) < p(x)$. By same logic,  when $x > 10 \pi$, $p^*(x) > p(x)$.
+Here, we can see that when $g^2(x)p(x)$ is small, it is equal to 0. Note the asymptotic behavior of the curve. Thus, we must ensure that when $x < 10 \pi$, $p^*(x) < p(x)$. By same logic,  when $x > 10 \pi$, $p^*(x) > p(x)$. However, note that if $x < 10 \pi$, $g(x) = 0$. Thus, we realistically only need to satisfy $x > 10 \pi$, $p^*(x) > p(x)$. Thus, the simplest measure is to shift the exponential distribution $p(x)$ $10 \pi$ to the right. Thus, $p^*(x) = e^{-x + 10\pi}$
 
 ### d
 
 ```{r}
-set.seed(123)
-lambda <- 1
-n <- ceiling((1 / lambda^2) / (10^(-6) * 0.01))
-curr_i <- numeric(3)
-real_i <- 1/(1+lambda^2)
-
-curr_n <- n
-x <- runif(curr_n, 0, 1)
-y <- -log(x) / lambda
-est <- 1/curr_n * sum(sin(y) / lambda)
+n <- 10^6
+x <- runif(n, 0, 1)
+y <- -log(x) + 10*pi
+est <- 1/n * sum(sin(y) * (exp(-y) / exp(-y + 10*pi)))
 est
-real <- 1 / (1 + 1^2)
-real
 ```
-
 
