@@ -1,0 +1,64 @@
+---
+title: "Lab 4"
+output: pdf_document
+date: "2022-12-02"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(e1071)
+library(tidyverse)
+```
+
+## Problem 1
+
+### a
+
+```{r}
+dat <- read.delim('/home/henry/Desktop/MSiA/MSiA 400/redwine.txt')
+```
+
+```{r}
+# only categorical type of variable is wine quality. It does not seem to be continuous
+hist(dat$QA)
+```
+
+```{r}
+# for the rest, stem and leaf plot are ideal
+stem(dat$FA)
+stem(dat$VA)
+stem(dat$CA)
+stem(dat$RS)
+stem(dat$CH)
+stem(dat$FS)
+stem(dat$SD)
+stem(dat$DE)
+stem(dat$PH)
+stem(dat$SU)
+stem(dat$AL)
+```
+
+### b
+
+```{r}
+boxplot(dat$QA, main = "QA")
+boxplot(dat$FA, main = "FA")
+boxplot(dat$VA, main = "VA")
+boxplot(dat$CA, main = "CA")
+boxplot(dat$RS, main = "RS")
+boxplot(dat$CH, main = "CH")
+boxplot(dat$FS, main = "FS")
+boxplot(dat$SD, main = "SD")
+boxplot(dat$DE, main = "DE")
+boxplot(dat$PH, main = "PH")
+boxplot(dat$SU, main = "SU")
+boxplot(dat$AL, main = "AL")
+```
+
+As seen from the boxplots above, VA, CA, CH, FS, SD, PH, SU, and AL seem to have significant outliers.
+
+### c
+
+```{r}
+
+```
