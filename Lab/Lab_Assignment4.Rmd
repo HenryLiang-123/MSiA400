@@ -8,6 +8,9 @@ date: "2022-12-02"
 knitr::opts_chunk$set(echo = TRUE)
 library(e1071)
 library(tidyverse)
+library(Hmisc)
+library(caret)
+library(DMwR)
 ```
 
 ## Problem 1
@@ -15,28 +18,13 @@ library(tidyverse)
 ### a
 
 ```{r}
-dat <- read.delim('/home/henry/Desktop/MSiA/MSiA 400/redwine.txt')
+dat <- read.delim('C:/Users/henry/OneDrive/Documents/redwine.txt')
 ```
 
 ```{r}
-# only categorical type of variable is wine quality. It does not seem to be continuous
-hist(dat$QA)
+hist.data.frame(dat)
 ```
 
-```{r}
-# for the rest, stem and leaf plot are ideal
-stem(dat$FA)
-stem(dat$VA)
-stem(dat$CA)
-stem(dat$RS)
-stem(dat$CH)
-stem(dat$FS)
-stem(dat$SD)
-stem(dat$DE)
-stem(dat$PH)
-stem(dat$SU)
-stem(dat$AL)
-```
 
 ### b
 
@@ -60,5 +48,252 @@ As seen from the boxplots above, VA, CA, CH, FS, SD, PH, SU, and AL seem to have
 ### c
 
 ```{r}
+var <- colnames(dat)
+sk <- c(skewness(dat$QA, na.rm = TRUE),
+skewness(dat$FA, na.rm = TRUE),
+skewness(dat$VA, na.rm = TRUE),
+skewness(dat$CA, na.rm = TRUE),
+skewness(dat$RS, na.rm = TRUE),
+skewness(dat$CH, na.rm = TRUE),
+skewness(dat$FS, na.rm = TRUE),
+skewness(dat$SD, na.rm = TRUE),
+skewness(dat$DE, na.rm = TRUE),
+skewness(dat$PH, na.rm = TRUE),
+skewness(dat$SU, na.rm = TRUE),
+skewness(dat$AL, na.rm = TRUE))
 
+kt <- c(kurtosis(dat$QA, na.rm = TRUE),
+kurtosis(dat$FA, na.rm = TRUE),
+kurtosis(dat$VA, na.rm = TRUE),
+kurtosis(dat$CA, na.rm = TRUE),
+kurtosis(dat$RS, na.rm = TRUE),
+kurtosis(dat$CH, na.rm = TRUE),
+kurtosis(dat$FS, na.rm = TRUE),
+kurtosis(dat$SD, na.rm = TRUE),
+kurtosis(dat$DE, na.rm = TRUE),
+kurtosis(dat$PH, na.rm = TRUE),
+kurtosis(dat$SU, na.rm = TRUE),
+kurtosis(dat$AL, na.rm = TRUE))
+
+kt_real <- kt - 3
+
+to_right <- var[which(sk > 0.5)]
+to_left <- var[which(sk < -0.5)]
+not_sk <- var[which(abs(sk) < 0.5)]
+
+mesok <- var[which(round(abs(kt_real)) == 3)]
+leptok <- var[which(kt_real > 3)]
+platyk <- var[which(kt_real < 3)]
+
+to_right
+to_left
+not_sk
+
+mesok
+leptok
+platyk
+```
+
+### d
+
+```{r}
+for (i in 1:ncol(dat)){
+  par(cex=0.7)
+  qqnorm(dat[, i])
+  abline(mean(dat[, i], na.rm = TRUE), b=sd(dat[, i], na.rm = TRUE),col="red")
+}
+```
+
+Yes, they confirm the observations in the previous parts. Only QA, CA, and DE are not skewed, which can also be seen in the QQplots as they hug the red line more than others. The skewness is also shown.
+
+## Problem 2
+
+### a
+
+```{r}
+colSums(is.na(dat))
+sum(rowSums(is.na(dat)))
+```
+
+### b
+
+```{r}
+set.seed(123)
+folds <- createFolds(1:nrow(dat), k=5)
+```
+
+```{r}
+random.imp <- function (input, output){
+  missing_in <- is.na(input)
+  missing_out <- is.na(output)
+  n.missing <- sum(missing_out) # number of missing values
+  a.obs <- input[!missing_in]
+  imputed <- output
+  # sample with replacement
+  imputed[missing_out] <- sample(a.obs, n.missing, replace=T)
+  return(imputed)
+}
+
+mse_train <- numeric(5)
+mse_val <- numeric(5)
+
+for (i in 1:5){
+  curr_val_set <- dat[folds[[i]], ] 
+  curr_train_set <- dat[-folds[[i]], ] 
+  
+  curr_train_set$RS <- random.imp(curr_train_set$RS, curr_train_set$RS)
+  curr_train_set$SD <- random.imp(curr_train_set$SD, curr_train_set$SD)
+  
+  curr_val_set$RS <- random.imp(curr_train_set$RS, curr_val_set$RS)
+  curr_val_set$SD <- random.imp(curr_train_set$SD, curr_val_set$SD)
+  
+  curr_m <- lm(QA ~ ., data = curr_train_set)
+  curr_train_pred <- predict(curr_m, newdata = curr_train_set)
+  curr_val_pred <- predict(curr_m, newdata = curr_val_set)
+  
+  curr_train_mse <- mean((curr_train_pred - curr_train_set$QA)^2)
+  curr_val_mse <- mean((curr_val_pred - curr_val_set$QA)^2)
+
+  mse_train[i] <- curr_train_mse
+  mse_val[i] <- curr_val_mse
+}
+
+mean(mse_train)
+mean(mse_val)
+```
+
+### c
+
+```{r}
+mode.imp <- function (input, output){
+  missing_in <- is.na(input)
+  missing_out <- is.na(output)
+  a.obs <- input[!missing_in]
+  imputed <- output
+  imputed[missing_out] <- mode(a.obs)
+  return(imputed)
+}
+
+mse_train <- numeric(5)
+mse_val <- numeric(5)
+
+for (i in 1:5){
+  curr_val_set <- dat[folds[[i]], ] 
+  curr_train_set <- dat[-folds[[i]], ] 
+  
+  curr_train_set$RS <- random.imp(curr_train_set$RS, curr_train_set$RS)
+  curr_train_set$SD <- random.imp(curr_train_set$SD, curr_train_set$SD)
+  
+  curr_val_set$RS <- random.imp(curr_train_set$RS, curr_val_set$RS)
+  curr_val_set$SD <- random.imp(curr_train_set$SD, curr_val_set$SD)
+  
+  curr_m <- lm(QA ~ ., data = curr_train_set)
+  curr_train_pred <- predict(curr_m, newdata = curr_train_set)
+  curr_val_pred <- predict(curr_m, newdata = curr_val_set)
+  
+  curr_train_mse <- mean((curr_train_pred - curr_train_set$QA)^2)
+  curr_val_mse <- mean((curr_val_pred - curr_val_set$QA)^2)
+
+  mse_train[i] <- curr_train_mse
+  mse_val[i] <- curr_val_mse
+}
+
+mean(mse_train)
+mean(mse_val)
+```
+
+### d
+
+```{r}
+mean.imp <- function (input, output){
+  missing_in <- is.na(input)
+  missing_out <- is.na(output)
+  a.obs <- input[!missing_in]
+  imputed <- output
+  imputed[missing_out] <- mean(a.obs)
+  return(imputed)
+}
+
+mse_train <- numeric(5)
+mse_val <- numeric(5)
+
+for (i in 1:5){
+  curr_val_set <- dat[folds[[i]], ] 
+  curr_train_set <- dat[-folds[[i]], ] 
+  
+  curr_train_set$RS <- random.imp(curr_train_set$RS, curr_train_set$RS)
+  curr_train_set$SD <- random.imp(curr_train_set$SD, curr_train_set$SD)
+  
+  curr_val_set$RS <- random.imp(curr_train_set$RS, curr_val_set$RS)
+  curr_val_set$SD <- random.imp(curr_train_set$SD, curr_val_set$SD)
+  
+  curr_m <- lm(QA ~ ., data = curr_train_set)
+  curr_train_pred <- predict(curr_m, newdata = curr_train_set)
+  curr_val_pred <- predict(curr_m, newdata = curr_val_set)
+  
+  curr_train_mse <- mean((curr_train_pred - curr_train_set$QA)^2)
+  curr_val_mse <- mean((curr_val_pred - curr_val_set$QA)^2)
+
+  mse_train[i] <- curr_train_mse
+  mse_val[i] <- curr_val_mse
+}
+
+mean(mse_train)
+mean(mse_val)
+```
+
+### e
+
+```{r}
+mse_train <- numeric(5)
+mse_val <- numeric(5)
+
+for (i in 1:5){
+  curr_val_set <- dat[folds[[i]], ] 
+  curr_train_set <- dat[-folds[[i]], ] 
+  
+  curr_train_set <- knnImputation(curr_train_set, k = 5, distData = curr_train_set)
+  curr_val_set <- knnImputation(curr_val_set, k = 5, distData = curr_train_set)
+  
+  curr_m <- lm(QA ~ ., data = curr_train_set)
+  curr_train_pred <- predict(curr_m, newdata = curr_train_set)
+  curr_val_pred <- predict(curr_m, newdata = curr_val_set)
+  
+  curr_train_mse <- mean((curr_train_pred - curr_train_set$QA)^2)
+  curr_val_mse <- mean((curr_val_pred - curr_val_set$QA)^2)
+
+  mse_train[i] <- curr_train_mse
+  mse_val[i] <- curr_val_mse
+}
+
+mean(mse_train)
+mean(mse_val)
+```
+
+### f
+
+```{r}
+mse_train <- numeric(5)
+mse_val <- numeric(5)
+
+for (i in 1:5){
+  curr_val_set <- dat[folds[[i]], ] 
+  curr_train_set <- dat[-folds[[i]], ] 
+  
+  curr_train_set <- knnImputation(curr_train_set, k = 5, distData = curr_train_set)
+  curr_val_set <- knnImputation(curr_val_set, k = 5, distData = curr_train_set)
+  
+  curr_m <- lm(QA ~ ., data = curr_train_set)
+  curr_train_pred <- predict(curr_m, newdata = curr_train_set)
+  curr_val_pred <- predict(curr_m, newdata = curr_val_set)
+  
+  curr_train_mse <- mean((curr_train_pred - curr_train_set$QA)^2)
+  curr_val_mse <- mean((curr_val_pred - curr_val_set$QA)^2)
+
+  mse_train[i] <- curr_train_mse
+  mse_val[i] <- curr_val_mse
+}
+
+mean(mse_train)
+mean(mse_val)
 ```
